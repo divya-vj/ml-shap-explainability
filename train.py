@@ -44,6 +44,7 @@ def load_and_explore(filepath="data/credit_risk_dataset.csv"):
 
     return df
 
+
 # ■■ DAY 2: Preprocessing ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 def preprocess(df):
     """Clean and prepare data for training."""
@@ -54,8 +55,8 @@ def preprocess(df):
     df = df.copy()
 
     # 1. Handle missing values
-    df["person_emp_length"].fillna(df["person_emp_length"].median(), inplace=True)
-    df["loan_int_rate"].fillna(df["loan_int_rate"].median(), inplace=True)
+    df["person_emp_length"] = df["person_emp_length"].fillna(df["person_emp_length"].median())
+    df["loan_int_rate"] = df["loan_int_rate"].fillna(df["loan_int_rate"].median())
     print(f"Nulls after filling: {df.isnull().sum().sum()}")
 
     # 2. Encode categorical columns
@@ -86,8 +87,9 @@ def preprocess(df):
 
     print(f"\nFeature matrix shape: {X.shape}")
     print(f"Target shape: {y.shape}")
+    print(f"Target distribution: {y.value_counts().to_dict()}")
 
-    # 4. Train-test split
+    # 4. Train-test split — 80% train, 20% test
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
@@ -97,5 +99,7 @@ def preprocess(df):
 
     return X_train, X_test, y_train, y_test, label_encoders, feature_cols
 
+
 if __name__ == "__main__":
     df = load_and_explore()
+    X_train, X_test, y_train, y_test, encoders, features = preprocess(df)
