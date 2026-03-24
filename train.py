@@ -99,7 +99,67 @@ def preprocess(df):
 
     return X_train, X_test, y_train, y_test, label_encoders, feature_cols
 
+# ■■ DAY 3: Train XGBoost with MLflow ■■■■■■■■■■■■■■■■■■■■
+def train_model(X_train, X_test, y_train, y_test, feature_cols):
+    """Train XGBoost model and track with MLflow."""
+
+    params = {
+        "n_estimators": 200,
+        "max_depth": 6,
+        "learning_rate": 0.1,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "scale_pos_weight": 3,
+        "random_state": 42,
+        "eval_metric": "auc",
+        "use_label_encoder": False
+    }
+
+    mlflow.set_experiment("credit-risk-prediction")
+
+    with mlflow.start_run(run_name="xgboost-baseline"):
+
+        mlflow.log_params(params)
+
+        print("\nTraining XGBoost model...")
+        model = xgb.XGBClassifier(**params)
+        model.fit(
+            X_train, y_train,
+            eval_set=[(X_test, y_test)],
+            verbose=50
+        )
+
+        # Predictions
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
+
+        # Metrics
+        auc = roc_auc_score(y_test, y_prob)
+        report = classification_report(y_test, y_pred)
+
+        print(f"\nROC-AUC Score: {auc:.4f}")
+        print(f"\nClassification Report:")
+        print(report)
+
+        # Log metrics to MLflow
+        mlflow.log_metric("roc_auc", auc)
+
+        # Log F1 scores
+        lines = report.strip().split("\n")
+        for line in lines:
+            if "0" in line and len(line.split()) == 5:
+                mlflow.log_metric("f1_class_0", float(line.split()[3]))
+            if "1" in line and len(line.split()) == 5:
+                mlflow.log_metric("f1_class_1", float(line.split()[3]))
+
+        mlflow.xgboost.log_model(model, "model")
+
+        print(f"\nMLflow run logged.")
+        print(f"Run ID: {mlflow.active_run().info.run_id}")
+
+    return model
 
 if __name__ == "__main__":
     df = load_and_explore()
     X_train, X_test, y_train, y_test, encoders, features = preprocess(df)
+    model = train_model(X_train, X_test, y_train, y_test, features)
