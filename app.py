@@ -27,9 +27,10 @@ h2, h3 { color: #2A6ED4 !important; }
 @st.cache_resource
 def load_models():
     model = joblib.load("models/xgboost_model.joblib")
-    explainer = joblib.load("models/shap_explainer.joblib")
     encoders = joblib.load("models/label_encoders.joblib")
     features = joblib.load("models/feature_cols.joblib")
+    # Recreate explainer instead of loading saved file
+    explainer = shap.TreeExplainer(model)
     return model, explainer, encoders, features
 
 model, explainer, encoders, feature_cols = load_models()
