@@ -159,7 +159,62 @@ def train_model(X_train, X_test, y_train, y_test, feature_cols):
 
     return model
 
+# ■■ DAY 4: SHAP Explainability ■■■■■■■■■■■■■■■■■■■■■■■■■■
+def compute_shap(model, X_train, X_test, feature_cols):
+    """Compute SHAP values for global and local explanations."""
+    print("\n" + "="*60)
+    print("SHAP EXPLAINABILITY")
+    print("="*60)
+
+    model.get_booster().feature_names = feature_cols
+    explainer = shap.TreeExplainer(model.get_booster())
+
+
+    print("Computing SHAP values...")
+    shap_values = explainer.shap_values(X_test)
+
+    print(f"SHAP values shape: {shap_values.shape}")
+
+    # Global Feature Importance
+    mean_shap = np.abs(shap_values).mean(axis=0)
+    importance_df = pd.DataFrame({
+        "feature": feature_cols,
+        "mean_shap": mean_shap
+    }).sort_values("mean_shap", ascending=False)
+
+    print("\nGlobal Feature Importance (mean |SHAP|):")
+    print(importance_df.to_string(index=False))
+
+    # Local Explanation — Single Prediction
+    idx = 0
+    sample_shap = shap_values[idx]
+    base_value = explainer.expected_value
+
+    print(f"\nLocal explanation for sample {idx}:")
+    print(f"Base value (average prediction): {base_value:.4f}")
+    print(f"Final prediction probability: {base_value + sample_shap.sum():.4f}")
+
+    print("\nFeature contributions:")
+    for feat, val in sorted(zip(feature_cols, sample_shap),
+                            key=lambda x: abs(x[1]), reverse=True):
+        direction = "INCREASES risk" if val > 0 else "DECREASES risk"
+        print(f"  {feat:35s}: {val:+.4f} ({direction})")
+
+    return explainer, shap_values
+
+
+def save_artifacts(model, explainer, encoders, feature_cols):
+    """Save model and artifacts for serving."""
+    os.makedirs("models", exist_ok=True)
+    joblib.dump(model, "models/xgboost_model.joblib")
+    joblib.dump(explainer, "models/shap_explainer.joblib")
+    joblib.dump(encoders, "models/label_encoders.joblib")
+    joblib.dump(feature_cols, "models/feature_cols.joblib")
+    print("\nArtifacts saved to models/ directory")
+
 if __name__ == "__main__":
     df = load_and_explore()
     X_train, X_test, y_train, y_test, encoders, features = preprocess(df)
     model = train_model(X_train, X_test, y_train, y_test, features)
+    explainer, shap_values = compute_shap(model, X_train, X_test, features)
+    save_artifacts(model, explainer, encoders, features)
